@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Steel Defect Detection</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      margin: 0;
+      padding: 40px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: #111827;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    }
+
+    h1 {
+      margin-bottom: 8px;
+      color: #38bdf8;
+    }
+
+    p {
+      color: #cbd5e1;
+    }
+
+    input, button {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+    }
+
+    input {
+      background: #1f2937;
+      color: white;
+      width: 100%;
+    }
+
+    button {
+      background: #2563eb;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    .result {
+      margin-top: 30px;
+    }
+
+    img {
+      max-width: 100%;
+      margin-top: 20px;
+      border-radius: 12px;
+      border: 2px solid #334155;
+    }
+
+    table {
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #334155;
+      text-align: left;
+    }
+
+    th {
+      color: #38bdf8;
+    }
+
+    .loading {
+      margin-top: 20px;
+      color: #facc15;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Steel Surface Defect Detection</h1>
+    <p>Upload gambar permukaan baja untuk mendeteksi jenis cacat menggunakan YOLOv8n.</p>
+
+    <input type="file" id="imageInput" accept="image/*" />
+    <button onclick="predictDefect()">Detect Defect</button>
+
+    <div id="loading" class="loading"></div>
+
+    <div class="result" id="result"></div>
+  </div>
+
+  <script>
+    async function predictDefect() {
+      const input = document.getElementById("imageInput");
+      const resultDiv = document.getElementById("result");
+      const loading = document.getElementById("loading");
+
+      if (!input.files.length) {
+        alert("Pilih gambar terlebih dahulu.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", input.files[0]);
+
+      resultDiv.innerHTML = "";
+      loading.innerText = "Sedang memproses gambar...";
+
+      try {
+        const response = await fetch("/predict?conf=0.4", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+        loading.innerText = "";
+
+        if (!response.ok) {
+          resultDiv.innerHTML = `<p>Error: ${data.error}</p>`;
+          return;
+        }
+
+        let tableRows = "";
+
+        data.detections.forEach((item, index) => {
+          tableRows += `
+            <tr>
+              <td>${index + 1}</td>
+              <td>${item.class_name}</td>
+              <td>${(item.confidence * 100).toFixed(2)}%</td>
+            </tr>
+          `;
+        });
+
+        resultDiv.innerHTML = `
+          <h2>Detection Result</h2>
+          <p><strong>File:</strong> ${data.filename}</p>
+          <p><strong>Total Detection:</strong> ${data.total_detections}</p>
+
+          <img src="${data.result_image_url}" alt="Detection Result" />
+
+          <table>
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Class</th>
+                <th>Confidence</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows || `<tr><td colspan="3">Tidak ada cacat terdeteksi.</td></tr>`}
+            </tbody>
+          </table>
+        `;
+      } catch (error) {
+        loading.innerText = "";
+        resultDiv.innerHTML = `<p>Terjadi error saat memproses gambar.</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
